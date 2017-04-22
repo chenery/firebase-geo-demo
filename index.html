@@ -21,14 +21,32 @@
 
   <body>
 
-  <div id="users">
-      <button id="createUsers" type="button">Create user and locations</button>
+  <h2>User operations</h2>
+
+  <div id="login" style="display: none;">
+      <button id="loginbtn" type="button">Login with Facebook</button>
   </div>
 
-  <div id="distance">
-      <label for="distanceInput">Distance (km): </label><input id="distanceInput" type="text" value="50"/>
+  <div id="activate" style="display: none;">
+      <button id="activateBtn" type="button">Show your location to other users</button>
+  </div>
+
+  <div id="deActivate" style="display: none;">
+      <button id="deActivateBtn" type="button">Hide your location from other users</button>
+  </div>
+
+  <div id="query" style="display: none;">
+      <label for="distanceInput">Distance (km): </label><input id="distanceInput" type="text" value="1"/>
       <button id="searchButton" type="button">Search</button>
   </div>
+
+  <h2>Admin operations</h2>
+
+  <div id="users">
+      <button id="createUsers" type="button">Create users and locations</button>
+  </div>
+
+  <h2>Log</h2>
 
     <!-- Message log -->
     <div id="log"></div>
