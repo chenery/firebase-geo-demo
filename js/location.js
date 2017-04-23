@@ -42,6 +42,10 @@
     $('#createUsers').click(addData);
 
     var logRef = $('#log');
+    var _resultsDiv = $('#results');
+    var _resultsList = $('#resultsList');
+
+    var _userMap = {};
 
     // check for logged in user
     firebase.auth().getRedirectResult().then(function(result) {
@@ -125,7 +129,8 @@
 
     function query() {
         logRef.empty();
-        var results = [];
+        // todo re-querying should cancel the previous query
+        var locations = [];
         var start = Date.now();
         var radius = parseInt($('#distanceInput').val());
         log("*** Creating GeoQuery for radius " + radius + " ***");
@@ -134,38 +139,56 @@
             radius: radius
         });
 
-        var onKeyEnteredRegistration = geoQuery.on("key_entered", function (key, location, distance) {
+        var onKeyEnteredRegistration = geoQuery.on("key_entered", function (key, locationPin, distance) {
             log(key + " entered the query. Distance is " + distance + " km");
-            results.push({"key": key, "location": location, "distance": distance})
+            var location = {"key": key, "location": locationPin, "distance": distance};
+            locations.push(location);
+
+            // load user for location
+            loadUsersForLocations([location]).then(function(users) {
+                var user = users[0];
+                _userMap[user.id] = user;
+
+                // Now have all the results and are ready to render
+                // (note: there is an assumption that locations will come in quicker than users)
+                if (locations.length === mapSize(_userMap)) {
+                    renderResults(locations, _userMap);
+                }
+            });
         });
 
-        var onKeyExitedRegistration = geoQuery.on("key_exited", function (key, location, distance) {
+        var onKeyExitedRegistration = geoQuery.on("key_exited", function (key, locationPin, distance) {
             log(key + " exited the query. Distance is " + distance + " km");
+
+            // remove this location from the locations array, the basis of the query
+            locations.forEach(function(location, index) {
+                if (location.key === key) {
+                    locations.splice(index, 1);
+                }
+            });
+
+            // and remove the corresponding user map
+            delete _userMap[key];
+
+            renderResults(locations, _userMap);
         });
 
         var onReadyRegistration = geoQuery.on("ready", function () {
             var duration = Date.now() - start;
-            log("*** " + results.length + " Location records retrieved in " + duration + "ms ***");
+            log("*** " + locations.length + " Location records retrieved in " + duration + "ms ***");
 //            log("*** 'ready' event fired - cancelling query ***");
 //            geoQuery.cancel();
+        })
+    }
 
-            // the results appears to be received in the order in which they were entered into the db,
-            // rather than ordered from near to far
-            results.sort(function(a, b) {
-                if (a.distance === b.distance) {
-                    return 0;
-                }
-
-                if (a.distance < b.distance) {
-                    return -1;
-                } else {
-                    return 1;
-                }
-            });
-
+    /**
+     * @param locations
+     * @returns {Promise} of users
+     */
+    function loadUsersForLocations(locations) {
+        return new Promise(function(resolve, reject) {
             var startUserLoad = Date.now();
-
-            var userPromises = results.map(function(location) {
+            var userPromises = locations.map(function(location) {
                 return firebaseDatabase.ref("users/" + location.key).once('value');
             });
 
@@ -179,16 +202,21 @@
                 log("*** " + users.length + " user records retrieved in " + durationUserLoad + "ms ***");
 
                 users.forEach(function(user, index) {
-                    var location = results[index];
+                    var location = locations[index];
                     log("User: " + user.id + " distance: " + location.distance + " km: " + user.name
                         + " (" + user.locationName + ")");
+                    // enrich the user with the location
+                    user.location = location;
                 });
+
+                resolve(users);
 
             }).catch(function(reason){
                 // if any of the promises fails.
                 log("Error: " + reason);
+                reject(reason);
             });
-        })
+        });
     }
 
     function saveUser(email, name, photoURL) {
@@ -284,6 +312,51 @@
         document.getElementById("log").appendChild(childDiv);
     }
 
+    /**
+     * Assume: all users are loaded for each location
+     *
+     * 1. order locations
+     * 2. create an array of users to match the order of the locations
+     * 3. re-render the resultsList div
+     * @param locations
+     * @param userMap
+     */
+    function renderResults(locations, userMap) {
+
+        // 1. order locations
+        // the results appears to be received in the order in which they were entered into the db,
+        // rather than ordered from near to far
+        locations.sort(function(a, b) {
+            if (a.distance === b.distance) {
+                return 0;
+            }
+
+            if (a.distance < b.distance) {
+                return -1;
+            } else {
+                return 1;
+            }
+        });
+
+        // 2. create an array of users to match the order of the locations
+        var users = locations.map(function(location) {
+            return userMap[location.key];
+        });
+
+        // 3. re-render the resultsList div
+        _resultsList.empty();
+
+        users.forEach(function(user, index) {
+            var imgMarkup = "";
+            if (user.photoURL) {
+                imgMarkup = '<img src="' + user.photoURL + '"/>';
+            }
+            _resultsList.append("<li>" + imgMarkup + "&nbsp;" + user.name + " (" + user.location.distance + "kms)</li>");
+        });
+
+        _resultsDiv.show();
+    }
+
     // http://stackoverflow.com/questions/1144783/how-to-replace-all-occurrences-of-a-string-in-javascript
     function replaceAll(str, find, replace) {
         return str.replace(new RegExp(escapeRegExp(find), 'g'), replace);
@@ -291,5 +364,15 @@
 
     function escapeRegExp(str) {
         return str.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+    }
+
+    function mapSize(objectAsMap) {
+        var count = 0;
+        for (var k in objectAsMap) {
+            if (objectAsMap.hasOwnProperty(k)) {
+                ++count;
+            }
+        }
+        return count;
     }
 })();
