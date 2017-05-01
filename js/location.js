@@ -38,6 +38,9 @@
 
     var _queryDiv = $('#query');
 
+    var _searchVenuesDiv = $('#searchVenues');
+    $('#searchVenuesBtn').click(suggestPlaces);
+
     $('#searchButton').click(query);
     $('#createUsers').click(addData);
 
@@ -93,7 +96,6 @@
                     appId: '290526404722897',
                     version: 'v2.9'
                 });
-                $('#loginbutton,#feedbutton').removeAttr('disabled');
 
                 FB.api('/me/friends?access_token=' + token, 'GET', {}, function(response) {
 
@@ -127,6 +129,7 @@
                         _activateDiv.hide();
                         _deActivateDiv.show();
                         _queryDiv.show();
+                        _searchVenuesDiv.show();
                     });
                 }
             });
@@ -142,6 +145,7 @@
                 _deActivateDiv.hide();
                 _activateDiv.show();
                 _queryDiv.hide();
+                _searchVenuesDiv.hide();
             });
         }
     }
@@ -198,6 +202,26 @@
 //            log("*** 'ready' event fired - cancelling query ***");
 //            geoQuery.cancel();
         })
+    }
+
+    function suggestPlaces() {
+
+        $.get("https://maps.googleapis.com/maps/api/place/nearbysearch/json" +
+            "?location=51.5737021,-0.2370632&radius=500" +
+            "&type=restaurant&key=AIzaSyBGbU-a-leqaFPtLQv2Z6vfmB603ikFMcw", function(data) {
+
+            _resultsList.empty();
+
+//            users.forEach(function(user, index) {
+//                var imgMarkup = "";
+//                if (user.photoURL) {
+//                    imgMarkup = '<img src="' + user.photoURL + '"/>';
+//                }
+//                _resultsList.append("<li>" + imgMarkup + "&nbsp;" + user.name + " (" + user.location.distance + "kms)</li>");
+//            });
+
+            _resultsDiv.show();
+        });
     }
 
     /**
