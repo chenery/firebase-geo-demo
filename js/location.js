@@ -82,12 +82,31 @@
             // ...
         }
         // The signed-in user info.
+
         var user = result.user;
         if (user) {
             log("*** Logged in as user: " + user.displayName + " ***");
-            _loggedInUserFirebaseRef = saveUser(user.email, user.displayName, user.photoURL);
-            _loginDiv.hide();
-            _activateDiv.show();
+
+            $.ajaxSetup({ cache: true });
+            $.getScript('//connect.facebook.net/en_US/sdk.js', function(){
+                FB.init({
+                    appId: '290526404722897',
+                    version: 'v2.9'
+                });
+                $('#loginbutton,#feedbutton').removeAttr('disabled');
+
+                FB.api('/me/friends?access_token=' + token, 'GET', {}, function(response) {
+
+                    response.data.forEach(function(friend) {
+                        log("*** Found FB friend that uses this APP: " + friend.name + ", " + friend.id);
+                    });
+
+                    _loggedInUserFirebaseRef = saveUser(user.email, user.displayName, user.photoURL);
+                    _loginDiv.hide();
+                    _activateDiv.show();
+                });
+            });
+
         } else {
             log("*** Not logged in ***");
             _loginDiv.show();
