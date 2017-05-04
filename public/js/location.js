@@ -170,7 +170,7 @@
 
                 // Now have all the results and are ready to render
                 // (note: there is an assumption that locations will come in quicker than users)
-                if (locations.length === mapSize(_userMap)) {
+                if (locations.length <= mapSize(_userMap)) {
                     renderResults(locations, _userMap);
                 }
             });
